@@ -30,8 +30,13 @@ from __future__ import annotations
 import os
 import time
 import datetime as dt
+from zoneinfo import ZoneInfo
 
 import requests
+
+from db import ROSTER
+
+TZ = ZoneInfo("America/Toronto")
 
 BASE = "https://api.hubapi.com"
 
@@ -129,43 +134,59 @@ class HubSpot:
                 break
         return out
 
-    def users_by_id(self) -> dict:
-        """Map HubSpot user id -> display name, to turn the `assigned_to` user
-        property value into the name shown on the leaderboard. Uses the owners
-        endpoint (which exposes the linked userId) so we don't need the settings
-        scope; falls back to email if no name is set."""
-        out, after = {}, None
+    def owner_maps(self):
+        """Map owner id <-> display name. The `assigned_to` property is an
+        enumeration with referencedObjectType=OWNER, so its values are **owner
+        ids** (e.g. 139670813 = Ardinela Hoxha) — not user ids. The owners endpoint
+        is the authoritative source the report itself uses. Returns
+        (id_to_name, name_to_id) with names casefolded as the name_to_id key."""
+        id_to_name, name_to_id = {}, {}
+        after = None
         while True:
             params = {"limit": 100}
             if after:
                 params["after"] = after
             data = self._req("GET", "/crm/v3/owners", params=params)
             for o in data.get("results", []):
-                uid = o.get("userId")
-                name = f"{o.get('firstName','')} {o.get('lastName','')}".strip()
-                if uid is not None:
-                    out[str(uid)] = name or o.get("email", str(uid))
+                oid = str(o.get("id"))
+                name = f"{o.get('firstName') or ''} {o.get('lastName') or ''}".strip()
+                if not name:
+                    name = o.get("email") or oid
+                id_to_name[oid] = name
+                name_to_id[name.casefold()] = oid
             after = data.get("paging", {}).get("next", {}).get("after")
             if not after:
                 break
-        return out
+        return id_to_name, name_to_id
 
     # -- the actual query ---------------------------------------------------
     def fetch_breached(self) -> dict:
         """Return {person_name: open_breached_ticket_count}."""
         props = self.resolve_property_names()
         pipeline_ids, closed_stage_ids = self.pipeline_and_stage_ids()
-        owners = self.owners_by_name()
-        users = self.users_by_id()
-        now_ms = int(dt.datetime.now(dt.timezone.utc).timestamp() * 1000)
+        id_to_name, name_to_id = self.owner_maps()
 
-        exclude_owner_ids = [owners[n] for n in OWNER_NAME_NOT_IN if n in owners]
+        # "SLA Due Date is more than 0 days ago (EDT)" == due before the start of
+        # today in Toronto time (a date strictly in the past, not just before now).
+        start_today = dt.datetime.now(TZ).replace(hour=0, minute=0, second=0, microsecond=0)
+        sla_cutoff_ms = int(start_today.astimezone(dt.timezone.utc).timestamp() * 1000)
+
+        exclude_owner_ids = [name_to_id[n.casefold()] for n in OWNER_NAME_NOT_IN
+                             if n.casefold() in name_to_id]
+
+        # The report restricts to a fixed 26-person "Assigned to is any of" list.
+        roster_ids = [name_to_id[n.casefold()] for n in ROSTER if n.casefold() in name_to_id]
+        missing = [n for n in ROSTER if n.casefold() not in name_to_id]
+        if missing:
+            print(f"WARN: {len(missing)} roster names not matched to an owner "
+                  f"(will be undercounted): {missing}")
 
         # Server-side filters (index-friendly). One filterGroup == AND.
         filters = [
-            {"propertyName": props["sla_due"], "operator": "LT", "value": now_ms},
+            {"propertyName": props["sla_due"], "operator": "LT", "value": sla_cutoff_ms},
             {"propertyName": props["closed_date"], "operator": "NOT_HAS_PROPERTY"},
             {"propertyName": props["pipeline"], "operator": "IN", "values": pipeline_ids},
+            {"propertyName": props["assigned_to"], "operator": "IN", "values": roster_ids},
         ]
         if closed_stage_ids:
             filters.append({"propertyName": props["stage"], "operator": "NOT_IN",
@@ -209,7 +230,7 @@ class HubSpot:
                 uid = p.get(props["assigned_to"])
                 if not uid:
                     continue
-                name = users.get(str(uid), str(uid))
+                name = id_to_name.get(str(uid), str(uid))
                 counts[name] = counts.get(name, 0) + 1
             after = data.get("paging", {}).get("next", {}).get("after")
             if not after:
