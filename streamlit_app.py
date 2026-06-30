@@ -239,4 +239,7 @@ html.append(f"""
 </div>""")
 html.append('</div>')
 
-st.markdown("\n".join(html), unsafe_allow_html=True)
+# Strip leading whitespace from every line: Streamlit's markdown renderer treats
+# any line indented 4+ spaces as a code block, which would print our HTML as text.
+final_html = "\n".join(line.lstrip() for line in "\n".join(html).splitlines())
+st.markdown(final_html, unsafe_allow_html=True)
