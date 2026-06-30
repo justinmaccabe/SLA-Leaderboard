@@ -144,8 +144,9 @@ html, body, .stApp {{ background: {NAVY}; overflow: hidden; }}
 .hero-row {{ position:relative; z-index:1; display:flex; align-items:center; justify-content:space-between; gap:1.6rem; }}
 .brand {{ display:flex; align-items:center; gap:.75rem; }}
 .brand .mark {{ width:50px; height:50px; }}
-.brand .logo-badge {{ background:#fff; border-radius:12px; padding:6px; display:inline-flex; align-items:center; }}
-.brand .logo-img {{ height:42px; width:42px; display:block; }}
+.brand .logo-badge {{ background:#fff; border-radius:13px; width:56px; height:56px;
+                       display:inline-flex; align-items:center; justify-content:center; overflow:hidden; }}
+.brand .logo-img {{ width:100%; height:100%; object-fit:contain; transform:scale(1.45); }}
 .brand .wm b {{ font-family:'Lora',serif; font-size:1.5rem; letter-spacing:.05em; display:block; line-height:1; }}
 .headline {{ text-align:center; }}
 .headline .pip {{ width:34px; height:4px; background:{ORANGE}; border-radius:2px; margin:0 auto .4rem; }}
@@ -246,7 +247,7 @@ html.append('</div>')
 # --- footer ----------------------------------------------------------------
 html.append(f"""
 <div class="foot">
-  <div>Source: HubSpot · <b>{db.REPORT_NAME}</b></div>
+  <div>If broken, contact Justin Maccabe</div>
   <div><span class="big">{total}</span> tickets outside SLA &nbsp;·&nbsp;
        <b>{len(df)}</b> with breaches &nbsp;·&nbsp;
        <span class="ok"><b>{clean}</b> all clear</span></div>
