@@ -146,7 +146,7 @@ html, body, .stApp {{ background: {NAVY}; overflow: hidden; }}
 .brand .mark {{ width:50px; height:50px; }}
 .brand .logo-badge {{ background:#fff; border-radius:13px; width:56px; height:56px;
                        display:inline-flex; align-items:center; justify-content:center; overflow:hidden; }}
-.brand .logo-img {{ width:100%; height:100%; object-fit:contain; transform:scale(1.45); }}
+.brand .logo-img {{ width:100%; height:100%; object-fit:contain; transform:scale(1.25); }}
 .brand .wm b {{ font-family:'Lora',serif; font-size:1.5rem; letter-spacing:.05em; display:block; line-height:1; }}
 .headline {{ text-align:center; }}
 .headline .pip {{ width:34px; height:4px; background:{ORANGE}; border-radius:2px; margin:0 auto .4rem; }}
