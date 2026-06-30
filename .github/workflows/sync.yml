@@ -1,0 +1,25 @@
+name: SLA leaderboard sync
+
+# Pulls breached-ticket counts from HubSpot and writes a snapshot to the database.
+# GitHub cron is UTC and DST-blind, so we run every 15 min across the UTC band that
+# covers ET office hours in both EDT and EST; jobs/sync.py --scheduled then gates on
+# the real America/Toronto clock (08:30–17:30, Mon–Fri) and skips off-hours fires.
+on:
+  schedule:
+    - cron: "*/15 12-22 * * 1-5"
+  workflow_dispatch:   # manual "Run workflow" button for testing
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Sync snapshot
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          HUBSPOT_TOKEN: ${{ secrets.HUBSPOT_TOKEN }}
+        run: python jobs/sync.py --scheduled
