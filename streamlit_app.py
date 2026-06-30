@@ -82,12 +82,25 @@ def load_standings():
 
 
 def logo_markup() -> str:
-    for ext, mime in (("svg", "image/svg+xml"), ("png", "image/png")):
-        path = os.path.join(HERE, "assets", f"logo.{ext}")
-        if os.path.exists(path):
-            with open(path, "rb") as f:
-                b64 = base64.b64encode(f.read()).decode()
-            return f'<img class="logo-img" src="data:{mime};base64,{b64}" alt="Optimize Advisor Portal"/>'
+    """Use a logo asset from assets/ if present (prefers a file named logo.*, else
+    the first image found), shown in a white badge with the OPTIMIZE wordmark; falls
+    back to a drawn compass mark otherwise."""
+    mimes = {"svg": "image/svg+xml", "png": "image/png", "jpg": "image/jpeg",
+             "jpeg": "image/jpeg", "webp": "image/webp"}
+    assets_dir = os.path.join(HERE, "assets")
+    chosen = None
+    if os.path.isdir(assets_dir):
+        imgs = [f for f in sorted(os.listdir(assets_dir))
+                if f.rsplit(".", 1)[-1].lower() in mimes]
+        imgs.sort(key=lambda f: (not f.lower().startswith("logo."), f))
+        chosen = imgs[0] if imgs else None
+    if chosen:
+        with open(os.path.join(assets_dir, chosen), "rb") as f:
+            b64 = base64.b64encode(f.read()).decode()
+        mime = mimes[chosen.rsplit(".", 1)[-1].lower()]
+        return (f'<div class="brand"><span class="logo-badge">'
+                f'<img class="logo-img" src="data:{mime};base64,{b64}" alt="Optimize"/>'
+                f'</span><div class="wm"><b>OPTIMIZE</b></div></div>')
     return f"""
     <div class="brand">
       <svg class="mark" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
@@ -101,7 +114,7 @@ def logo_markup() -> str:
         <polygon points="60,60 36,84 50,60 60,50" fill="{INK}" opacity=".55"/>
         <circle cx="60" cy="60" r="5.5" fill="{NAVY}" stroke="{INK}" stroke-width="2.5"/>
       </svg>
-      <div class="wm"><b>OPTIMIZE</b><span>Advisor Portal</span></div>
+      <div class="wm"><b>OPTIMIZE</b></div>
     </div>"""
 
 
@@ -130,9 +143,10 @@ html, body, .stApp {{ background: {NAVY}; overflow: hidden; }}
 .curves {{ position:absolute; inset:0; width:100%; height:100%; z-index:0; pointer-events:none; }}
 .hero-row {{ position:relative; z-index:1; display:flex; align-items:center; justify-content:space-between; gap:1.6rem; }}
 .brand {{ display:flex; align-items:center; gap:.75rem; }}
-.brand .mark {{ width:50px; height:50px; }} .logo-img {{ height:50px; width:auto; }}
-.brand .wm b {{ font-family:'Lora',serif; font-size:1.4rem; letter-spacing:.04em; display:block; line-height:1; }}
-.brand .wm span {{ font-size:.56rem; letter-spacing:.32em; text-transform:uppercase; color:{MUTED}; }}
+.brand .mark {{ width:50px; height:50px; }}
+.brand .logo-badge {{ background:#fff; border-radius:12px; padding:6px; display:inline-flex; align-items:center; }}
+.brand .logo-img {{ height:42px; width:42px; display:block; }}
+.brand .wm b {{ font-family:'Lora',serif; font-size:1.5rem; letter-spacing:.05em; display:block; line-height:1; }}
 .headline {{ text-align:center; }}
 .headline .pip {{ width:34px; height:4px; background:{ORANGE}; border-radius:2px; margin:0 auto .4rem; }}
 .headline h1 {{ font-family:'Lora',serif; font-weight:600; font-size:2.2rem; margin:0; line-height:1; }}
